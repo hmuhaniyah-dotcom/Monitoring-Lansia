@@ -39,29 +39,34 @@
         const db = firebase.database();
 
         // Mengambil data dari root ("/") agar lebih pasti terbaca
-        db.ref('/').on('value', (snapshot) => {
-            const data = snapshot.val();
-            console.log("Data diterima:", data); // Cek di F12 Console
+  // Mengambil data dari folder 'Lansia' (sesuai yang muncul di Console Anda)
+db.ref('Lansia').on('value', (snapshot) => {
+    const data = snapshot.val();
+    console.log("Data Detail:", data);
 
-            if (data) {
-                // Jika data dikirim langsung ke root (tanpa folder Lansia1)
-                const heartRate = data.heartRate || data.bpm || "--";
-                const status = data.Status || "Normal";
+    if (data) {
+        // Sesuaikan nama variabel dengan yang dikirim ESP32 ke Firebase
+        // Jika di ESP32 Anda menggunakan 'heartRate', maka tulis data.heartRate
+        const bpm = data.heartRate || data.bpm || "--";
+        const status = data.Status || "Normal";
 
-                document.getElementById('bpm-value').innerText = heartRate;
-                document.getElementById('status-text').innerText = status;
+        document.getElementById('bpm-value').innerText = bpm;
+        
+        // Update Status & Alert
+        const statusText = document.getElementById('status-text');
+        statusText.innerText = status;
 
-                // Cek Alert Jatuh
-                if (status === "JATUH!" || data.isFalling === true) {
-                    document.getElementById('fall-alert').style.display = 'block';
-                } else {
-                    document.getElementById('fall-alert').style.display = 'none';
-                }
-            }
-        }, (error) => {
-            console.error("Gagal baca database:", error);
-        });
+        if (status === "JATUH!") {
+            document.getElementById('fall-alert').style.display = 'block';
+            statusText.style.color = "red";
+        } else {
+            document.getElementById('fall-alert').style.display = 'none';
+            statusText.style.color = "#2ecc71";
+        }
+    }
+});
     </script>
 </body>
 </html>
+
 
