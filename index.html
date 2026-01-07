@@ -1,61 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
+    <meta charset="UTF-8">
     <title>Monitoring Lansia</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f4f4f4; }
-        .card { background: white; padding: 20px; margin: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        #alert { color: red; font-weight: bold; display: none; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #f0f2f5; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block; min-width: 300px; }
+        h2 { color: #333; }
+        #bpm-value { font-size: 48px; color: #e74c3c; font-weight: bold; }
+        .status-ok { color: #2ecc71; font-weight: bold; }
+        .alert { background: #ff4757; color: white; padding: 10px; border-radius: 5px; margin-bottom: 20px; display: none; }
     </style>
 </head>
 <body>
-    <h1>Dashboard Monitoring Lansia</h1>
-    <div id="alert" class="card">PERINGATAN: POTENSI JATUH TERDETEKSI!</div>
-    
-    <div class="card">
-        <h2>Heart Rate: <span id="bpm">--</span> BPM</h2>
-    </div>
 
-    <div class="card" style="width: 80%; margin: auto;">
-        <canvas id="heartChart"></canvas>
+    <div id="fall-alert" class="alert">⚠️ PERINGATAN: TERDETEKSI JATUH! ⚠️</div>
+
+    <div class="card">
+        <h2>Kondisi Real-time</h2>
+        <div id="bpm-value">--</div>
+        <p>BPM (Detak Jantung)</p>
+        <hr>
+        <p>Status: <span id="status-text" class="status-ok">Mencari Data...</span></p>
     </div>
 
     <script>
+        // Konfigurasi KHUSUS untuk proyek Anda
         const firebaseConfig = {
-            apiKey: "AIzaSyAOlwN584C4-FuF-yxsV0_LfHgYg66MPs0",
-            databaseURL: "https://tubes-iot-c14b6-default-rtdb.firebaseio.com/",
-            projectId: "tubes-iot-c14b6",
+            apiKey: "AIzaSy...", // GANTI DENGAN API KEY ASLI DARI PROJECT SETTINGS
+            databaseURL: "https://tubes-iot-c14b6-default-rtdb.firebaseio.com",
+            projectId: "tubes-iot-c14b6"
         };
+
+        // Inisialisasi Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Update Real-time
-        db.ref('Lansia1').on('value', (snapshot) => {
+        // Mengambil data dari root ("/") agar lebih pasti terbaca
+        db.ref('/').on('value', (snapshot) => {
             const data = snapshot.val();
-            document.getElementById('bpm').innerText = data.heartRate;
-            if(data.Status === "JATUH!") {
-                document.getElementById('alert').style.display = 'block';
-            } else {
-                document.getElementById('alert').style.display = 'none';
+            console.log("Data diterima:", data); // Cek di F12 Console
+
+            if (data) {
+                // Jika data dikirim langsung ke root (tanpa folder Lansia1)
+                const heartRate = data.heartRate || data.bpm || "--";
+                const status = data.Status || "Normal";
+
+                document.getElementById('bpm-value').innerText = heartRate;
+                document.getElementById('status-text').innerText = status;
+
+                // Cek Alert Jatuh
+                if (status === "JATUH!" || data.isFalling === true) {
+                    document.getElementById('fall-alert').style.display = 'block';
+                } else {
+                    document.getElementById('fall-alert').style.display = 'none';
+                }
             }
-        });
-
-        // Chart.js Setup
-        const ctx = document.getElementById('heartChart').getContext('2d');
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: { labels: [], datasets: [{ label: 'Heart Rate', data: [], borderColor: 'red' }] }
-        });
-
-        // Ambil riwayat (contoh sederhana)
-        db.ref('History').limitToLast(20).on('child_added', (snapshot) => {
-            const log = snapshot.val();
-            chart.data.labels.push(new Date().toLocaleTimeString());
-            chart.data.datasets[0].data.push(log.bpm);
-            chart.update();
+        }, (error) => {
+            console.error("Gagal baca database:", error);
         });
     </script>
 </body>
