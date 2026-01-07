@@ -2,71 +2,102 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Monitoring Lansia</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Lansia - Dashboard</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
     <style>
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #f0f2f5; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block; min-width: 300px; }
-        h2 { color: #333; }
-        #bpm-value { font-size: 48px; color: #e74c3c; font-weight: bold; }
-        .status-ok { color: #2ecc71; font-weight: bold; }
-        .alert { background: #ff4757; color: white; padding: 10px; border-radius: 5px; margin-bottom: 20px; display: none; }
+        .card { 
+            background: white; padding: 30px; border-radius: 15px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            display: inline-block; min-width: 320px; 
+        }
+        h1 { color: #2c3e50; }
+        #bpm-value { font-size: 64px; color: #e74c3c; font-weight: bold; margin: 10px 0; }
+        #guncangan-value { font-size: 20px; color: #34495e; margin-bottom: 10px; }
+        .status-container { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
+        #status-text { font-size: 1.5rem; font-weight: bold; }
+        
+        /* Animasi Peringatan Jatuh */
+        .alert { 
+            background: #ff4757; color: white; padding: 15px; border-radius: 8px; 
+            margin-bottom: 20px; font-weight: bold; display: none;
+            animation: blinker 1s linear infinite;
+        }
+        @keyframes blinker { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
 
-    <div id="fall-alert" class="alert">⚠️ PERINGATAN: TERDETEKSI JATUH! ⚠️</div>
+    <div id="fall-alert" class="alert">⚠️ PERINGATAN: LANSIA DALAM BAHAYA (TERDETEKSI JATUH)! ⚠️</div>
 
     <div class="card">
-        <h2>Kondisi Real-time</h2>
+        <h1>Monitoring Lansia</h1>
+        
+        <h2>Detak Jantung</h2>
         <div id="bpm-value">--</div>
-        <p>BPM (Detak Jantung)</p>
-        <hr>
-        <p>Status: <span id="status-text" class="status-ok">Mencari Data...</span></p>
+        <p>BPM</p>
+
+        <div id="guncangan-value">Guncangan: -- G</div>
+
+        <div class="status-container">
+            <p style="margin: 0; color: #7f8c8d;">Status Alat:</p>
+            <div id="status-text">Menghubungkan...</div>
+        </div>
     </div>
 
     <script>
-        // Konfigurasi KHUSUS untuk proyek Anda
+        // --- KONFIGURASI FIREBASE ---
+        // Sesuai dengan Project ID tubes-iot-c14b6
         const firebaseConfig = {
-            apiKey: "AIzaSyAOlwN584C4-FuF-yxsV0_LfHgYg66MPs0", // GANTI DENGAN API KEY ASLI DARI PROJECT SETTINGS
-            databaseURL: "https://tubes-iot-c14b6-default-rtdb.firebaseio.com/",
+            apiKey: "AIzaSyAOlwN584C4-FuF-yxsV0_LfHgYg66MPs0",
+            databaseURL: "https://tubes-iot-c14b6-default-rtdb.firebaseio.com",
             projectId: "tubes-iot-c14b6"
         };
 
-        // Inisialisasi Firebase
+        // Inisialisasi
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Mengambil data dari root ("/") agar lebih pasti terbaca
-  // Mengambil data dari folder 'Lansia' (sesuai yang muncul di Console Anda)
-db.ref('Lansia').on('value', (snapshot) => {
-    const data = snapshot.val();
-    console.log("Data Detail:", data);
+        // --- MENGAMBIL DATA DARI PATH 'Lansia' ---
+        // Sesuai dengan kode Arduino: Firebase.setInt(..., "/Lansia/BPM", ...)
+        db.ref('Lansia').on('value', (snapshot) => {
+            const data = snapshot.val();
+            console.log("Data diterima:", data);
 
-    if (data) {
-        // Sesuaikan nama variabel dengan yang dikirim ESP32 ke Firebase
-        // Jika di ESP32 Anda menggunakan 'heartRate', maka tulis data.heartRate
-        const bpm = data.heartRate || data.bpm || "--";
-        const status = data.Status || "Normal";
+            if (data) {
+                // 1. Update BPM (Mencari key 'BPM' sesuai Arduino)
+                const heartRate = data.BPM !== undefined ? data.BPM : "--";
+                document.getElementById('bpm-value').innerText = heartRate;
 
-        document.getElementById('bpm-value').innerText = bpm;
-        
-        // Update Status & Alert
-        const statusText = document.getElementById('status-text');
-        statusText.innerText = status;
+                // 2. Update Guncangan (Mencari key 'Guncangan')
+                const guncangan = data.Guncangan !== undefined ? data.Guncangan.toFixed(2) : "--";
+                document.getElementById('guncangan-value').innerText = "Guncangan: " + guncangan + " G";
 
-        if (status === "JATUH!") {
-            document.getElementById('fall-alert').style.display = 'block';
-            statusText.style.color = "red";
-        } else {
-            document.getElementById('fall-alert').style.display = 'none';
-            statusText.style.color = "#2ecc71";
-        }
-    }
-});
+                // 3. Update Status & Alert (Mencari key 'Status')
+                const status = data.Status || "AMAN";
+                const statusText = document.getElementById('status-text');
+                const fallAlert = document.getElementById('fall-alert');
+
+                statusText.innerText = status;
+
+                // Jika status "BAHAYA" (dari logika jatuh Arduino)
+                if (status === "BAHAYA") {
+                    fallAlert.style.display = 'block';
+                    statusText.style.color = "#ff4757";
+                    document.body.style.backgroundColor = "#ffebee";
+                } else {
+                    fallAlert.style.display = 'none';
+                    statusText.style.color = "#2ecc71";
+                    document.body.style.backgroundColor = "#f0f2f5";
+                }
+            }
+        }, (error) => {
+            console.error("Firebase Error:", error);
+            document.getElementById('status-text').innerText = "Koneksi Gagal";
+        });
     </script>
 </body>
 </html>
-
-
